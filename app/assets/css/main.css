@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Integral CF";
+  src: url("/fonts/IntegralCF-Regular.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-display: "Integral CF", "Archivo Black", "Arial Black", sans-serif;
+  --font-sans: "Satoshi", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #000000;
+  --color-surface: #f0f0f0;
+  --color-muted: rgb(0 0 0 / 0.6);
+  --color-sale: #ff3333;
+  --color-sale-bg: rgb(255 51 51 / 0.1);
+}
+
+@layer base {
+  .font-display {
+    -webkit-text-stroke: 0.03em currentColor;
+    paint-order: stroke fill;
+  }
+
+  body {
+    @apply bg-white font-sans text-ink antialiased;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 100%;
+    letter-spacing: 0;
+  }
+}
+
+.logo,
+.cap-trim {
+  text-box: trim-both cap alphabetic;
+}
+@supports not (text-box: trim-both cap alphabetic) {
+  .logo {
+    transform: translateY(-3px);
+  }
+}
+
+@utility container-x {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 1240px;
+  padding-inline: 1rem;
+
+  @media (min-width: 768px) {
+    padding-inline: 1.5rem;
+  }
+}
+
+@utility section-title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  text-align: center;
+  font-size: 2rem;
+  line-height: 1.1;
+
+  @media (min-width: 768px) {
+    font-size: 3rem;
+  }
+}
