@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { formatPrice } from '~/utils/product';
+
 interface Product {
-    slug?: string
+    id: number
     name: string
     image: string
     rating: number
@@ -11,7 +13,7 @@ interface Product {
 
 const props = defineProps<{ product: Product }>()
 
-const href = computed(() => `/product/${props.product.slug ?? slugify(props.product.name)}`)
+const href = computed(() => `/product/${props.product.id}`)
 
 const starPath = 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'
 </script>
@@ -49,10 +51,11 @@ const starPath = 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L
         </div>
 
         <div class="mt-1 flex flex-wrap items-center gap-x-2 @min-[300px]:gap-x-3">
-            <p class="text-base font-bold @min-[240px]:text-xl @min-[300px]:text-2xl">${{ product.price }}</p>
+            <p class="text-base font-bold @min-[240px]:text-xl @min-[300px]:text-2xl">${{ formatPrice(product.price) }}
+            </p>
             <template v-if="product.oldPrice">
                 <p class="text-base font-bold text-black/30 line-through @min-[240px]:text-xl @min-[300px]:text-2xl">${{
-                    product.oldPrice }}</p>
+                    formatPrice(product.oldPrice) }}</p>
                 <span
                     class="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-500 @min-[240px]:px-3 @min-[240px]:py-1 @min-[240px]:text-xs">
                     -{{ product.discount }}%

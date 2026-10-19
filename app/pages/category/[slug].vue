@@ -1,38 +1,74 @@
 <script setup lang="ts">
-const allProducts = [
-    { name: 'Gradient Graphic T-shirt', image: '/images/products/gradient-tshirt.png', rating: 3.5, price: 145 },
-    { name: 'Polo with Tipping Details', image: '/images/products/polo-tipping.png', rating: 4.5, price: 180 },
-    { name: 'Black Striped T-shirt', image: '/images/products/black-striped-tshirt.png', rating: 5, price: 120, oldPrice: 150, discount: 30 },
-    { name: 'Skinny Fit Jeans', image: '/images/products/skinny-jeans.png', rating: 3.5, price: 240, oldPrice: 260, discount: 20 },
-    { name: 'Checkered Shirt', image: '/images/products/checkered-shirt.png', rating: 4.5, price: 180 },
-    { name: 'Sleeve Striped T-shirt', image: '/images/products/striped-tshirt.png', rating: 4.5, price: 130, oldPrice: 160, discount: 30 },
-    { name: 'Vertical Striped Shirt', image: '/images/products/striped-shirt.png', rating: 5, price: 212, oldPrice: 232, discount: 20 },
-    { name: 'Courage Graphic T-shirt', image: '/images/products/graphic-tshirt.png', rating: 4, price: 145 },
-    { name: 'Loose Fit Bermuda Shorts', image: '/images/products/bermuda-shorts.png', rating: 3, price: 80 },
-]
-
-const categories = ['T-shirts', 'Shorts', 'Shirts', 'Hoodie', 'Jeans']
-const dressStyles = [
-    { slug: 'casual', name: 'Casual' },
-    { slug: 'formal', name: 'Formal' },
-    { slug: 'party', name: 'Party' },
-    { slug: 'gym', name: 'Gym' },
-]
+import type { ProductsResponse, CategoryItem } from '~/utils/product'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
-const styleName = computed(() => dressStyles.find(d => d.slug === slug.value)?.name ?? '')
+const style = computed(() => dressStyles.find(d => d.slug === slug.value))
+const styleName = computed(() => style.value?.name ?? '')
 
-if (!styleName.value) {
+if (!style.value) {
     throw createError({ statusCode: 404, statusMessage: 'Style not found', fatal: true })
 }
 
-const styleProducts: Record<string, typeof allProducts> = {
-    casual: allProducts,
-    formal: allProducts,
-    party: allProducts,
-    gym: allProducts,
+const LIMIT = 9
+const page = ref(1)
+const sort = ref('popular')
+const activeCategory = ref(style.value?.category ?? '')
+
+const sortParams = computed(() => {
+    if (sort.value === 'price-asc') return { sortBy: 'price', order: 'asc' }
+    if (sort.value === 'price-desc') return { sortBy: 'price', order: 'desc' }
+    return { sortBy: 'rating', order: 'desc' }
+})
+
+const { data: apiData, error } = await useFetch<ProductsResponse>(
+    () => `${API_URL}/products/category/${activeCategory.value}`,
+    {
+        query: computed(() => ({
+            limit: LIMIT,
+            skip: (page.value - 1) * LIMIT,
+            ...sortParams.value,
+        })),
+    },
+)
+
+const { data: allCategories } = await useFetch<CategoryItem[]>(`${API_URL}/products/categories`)
+const categoryList = computed(() =>
+    (allCategories.value ?? []).filter(c => FASHION_CATEGORIES.includes(c.slug)),
+)
+
+const items = computed(() => (apiData.value?.products ?? []).map(toCard))
+const total = computed(() => apiData.value?.total ?? 0)
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / LIMIT)))
+const firstShown = computed(() => (total.value ? (page.value - 1) * LIMIT + 1 : 0))
+const lastShown = computed(() => (page.value - 1) * LIMIT + items.value.length)
+
+watch([sort, activeCategory], () => {
+    page.value = 1
+})
+watch(slug, () => {
+    activeCategory.value = style.value?.category ?? ''
+    page.value = 1
+})
+
+function goPage(n: number) {
+    page.value = n
+    if (import.meta.client) window.scrollTo({ top: 0, behavior: 'smooth' })
 }
+
+const pages = computed(() => {
+    const n = totalPages.value
+    const c = page.value
+    if (n <= 5) return Array.from({ length: n }, (_, i) => i + 1)
+    const nums = [...new Set([1, n, c - 1, c, c + 1].filter(p => p >= 1 && p <= n))].sort((a, b) => a - b)
+    const out: (number | string)[] = []
+    nums.forEach((p, i) => {
+        if (i && p - nums[i - 1]! > 1) out.push('...')
+        out.push(p)
+    })
+    return out
+})
+
 const sizes = ['XX-Small', 'X-Small', 'Small', 'Medium', 'Large', 'X-Large', 'XX-Large', '3X-Large', '4X-Large']
 const colors = [
     { name: 'Green', hex: '#00C12B' },
@@ -47,7 +83,6 @@ const colors = [
     { name: 'Black', hex: '#000000' },
 ]
 
-// Filter
 const showFilters = ref(false)
 
 watch(showFilters, (open) => {
@@ -59,8 +94,8 @@ onBeforeUnmount(() => {
 const selectedColor = ref('')
 const selectedSize = ref('Large')
 
-const PRICE_MIN = 50
-const PRICE_MAX = 300
+const PRICE_MIN = 0
+const PRICE_MAX = 200
 const priceMin = ref(PRICE_MIN)
 const priceMax = ref(PRICE_MAX)
 const applied = ref({ min: PRICE_MIN, max: PRICE_MAX })
@@ -85,17 +120,9 @@ function applyFilter() {
     showFilters.value = false
 }
 
-const sort = ref('popular')
-
-const list = computed(() => {
-    const result = (styleProducts[slug.value] ?? []).filter(p => p.price >= applied.value.min && p.price <= applied.value.max)
-    if (sort.value === 'price-asc') return [...result].sort((a, b) => a.price - b.price)
-    if (sort.value === 'price-desc') return [...result].sort((a, b) => b.price - a.price)
-    return result
-})
-
-const pages = [1, 2, 3, '...', 8, 9, 10]
-const page = ref(1)
+const list = computed(() =>
+    items.value.filter(p => p.price >= applied.value.min && p.price <= applied.value.max),
+)
 </script>
 
 <template>
@@ -137,10 +164,11 @@ const page = ref(1)
 
                 <!-- Categories -->
                 <ul class="mt-5 border-t border-black/10 pt-5">
-                    <li v-for="c in categories" :key="c">
-                        <button type="button"
-                            class="flex w-full items-center justify-between py-2 text-black/60 hover:text-ink">
-                            {{ c }}
+                    <li v-for="c in categoryList" :key="c.slug">
+                        <button type="button" class="flex w-full items-center justify-between py-2 hover:text-ink"
+                            :class="c.slug === activeCategory ? 'font-bold text-ink' : 'text-black/60'"
+                            @click="activeCategory = c.slug">
+                            {{ c.name }}
                             <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <path d="M9 18l6-6-6-6" />
@@ -175,6 +203,7 @@ const page = ref(1)
                     </div>
                 </div>
 
+                <!-- Colors -->
                 <div class="mt-5 border-t border-black/10 pt-5">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xl font-bold">Colors</h3>
@@ -199,6 +228,7 @@ const page = ref(1)
                     </div>
                 </div>
 
+                <!-- Size -->
                 <div class="mt-5 border-t border-black/10 pt-5">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xl font-bold">Size</h3>
@@ -268,7 +298,7 @@ const page = ref(1)
                             {{ styleName }}
                         </h1>
                         <p class="truncate text-xs text-muted md:text-sm lg:hidden">
-                            Showing 1-{{ list.length }} of {{ list.length }} Products
+                            Showing {{ firstShown }}-{{ lastShown }} of {{ total }} Products
                         </p>
                     </div>
 
@@ -282,7 +312,7 @@ const page = ref(1)
                     </button>
 
                     <div class="hidden items-center gap-3 text-base lg:flex">
-                        <p class="text-muted">Showing 1-{{ list.length }} of {{ list.length }} Products</p>
+                        <p class="text-muted">Showing {{ firstShown }}-{{ lastShown }} of {{ total }} Products</p>
                         <label class="flex items-center gap-1">
                             <span class="text-muted">Sort by:</span>
                             <select v-model="sort" class="bg-transparent font-medium outline-none">
@@ -296,18 +326,21 @@ const page = ref(1)
 
                 <div v-if="list.length"
                     class="mt-4 grid grid-cols-2 gap-x-3 gap-y-6 md:mt-5 md:gap-x-4 lg:grid-cols-3 lg:gap-5">
-                    <ProductCard v-for="p in list" :key="p.name" :product="p" />
+                    <ProductCard v-for="p in list" :key="p.id" :product="p" />
                 </div>
+                <p v-else-if="error" class="mt-10 rounded-2xl border border-black/10 px-6 py-16 text-center text-muted">
+                    Could not load products. Please try again later.
+                </p>
                 <p v-else class="mt-10 rounded-2xl border border-black/10 px-6 py-16 text-center text-muted">
                     No products in this price range. Try widening the price filter.
                 </p>
 
                 <!-- Pagination -->
-                <nav aria-label="Pagination"
+                <nav v-if="totalPages > 1" aria-label="Pagination"
                     class="mt-8 flex items-center justify-between gap-1 border-t border-black/10 pt-4 md:mt-10 md:gap-2 md:pt-5">
                     <button type="button"
                         class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-black/10 px-2.5 text-xs font-medium hover:bg-surface disabled:opacity-40 md:h-10 md:gap-2 md:px-4 md:text-sm"
-                        :disabled="page === 1" @click="page--">
+                        :disabled="page === 1" @click="goPage(page - 1)">
                         <svg viewBox="0 0 24 24" class="size-3.5 md:size-4" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M19 12H5M12 19l-7-7 7-7" />
@@ -316,11 +349,11 @@ const page = ref(1)
                     </button>
 
                     <ul class="flex items-center text-xs md:gap-1 md:text-sm">
-                        <li v-for="(n, i) in pages" :key="i" :class="n === 8 || n === 9 ? 'hidden sm:block' : ''">
+                        <li v-for="(n, i) in pages" :key="i">
                             <span v-if="n === '...'" class="px-1.5 text-muted md:px-2">...</span>
                             <button v-else type="button" class="size-8 rounded-lg font-medium md:size-10"
                                 :class="page === n ? 'bg-surface' : 'text-black/50 hover:bg-surface'"
-                                :aria-current="page === n ? 'page' : undefined" @click="page = n as number">
+                                :aria-current="page === n ? 'page' : undefined" @click="goPage(n as number)">
                                 {{ n }}
                             </button>
                         </li>
@@ -328,7 +361,7 @@ const page = ref(1)
 
                     <button type="button"
                         class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-black/10 px-2.5 text-xs font-medium hover:bg-surface disabled:opacity-40 md:h-10 md:gap-2 md:px-4 md:text-sm"
-                        :disabled="page === 10" @click="page++">
+                        :disabled="page === totalPages" @click="goPage(page + 1)">
                         Next
                         <svg viewBox="0 0 24 24" class="size-3.5 md:size-4" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

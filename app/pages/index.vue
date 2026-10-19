@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ProductsResponse } from '~/utils/product'
+
 const stats = [
     { value: '200+', label: 'International Brands' },
     { value: '2,000+', label: 'High-Quality Products' },
@@ -13,24 +15,20 @@ const brands = [
     { name: 'Calvin Klein', src: '/images/brands/calvin.svg', },
 ]
 
-const newArrivals = [
-    { name: 'T-shirt with Tape Details', image: '/images/products/tshirt-tape.png', rating: 4.5, price: 120 },
-    { name: 'Skinny Fit Jeans', image: '/images/products/skinny-jeans.png', rating: 3.5, price: 240, oldPrice: 260, discount: 20 },
-    { name: 'Checkered Shirt', image: '/images/products/checkered-shirt.png', rating: 4.5, price: 180 },
-    { name: 'Sleeve Striped T-shirt', image: '/images/products/striped-tshirt.png', rating: 4.5, price: 130, oldPrice: 160, discount: 30 },
-]
+const { data: clothes, error } = await useAsyncData('home-products', async () => {
+    const responses = await Promise.all(
+        CLOTHING_CATEGORIES.map(c => $fetch<ProductsResponse>(`${API_URL}/products/category/${c}`)),
+    )
+    return responses.flatMap(r => r.products).map(toCard)
+})
 
-const topSelling = [
-    { name: 'Vertical Striped Shirt', image: '/images/products/striped-shirt.png', rating: 5, price: 212, oldPrice: 232, discount: 20 },
-    { name: 'Courage Graphic T-shirt', image: '/images/products/graphic-tshirt.png', rating: 4, price: 145 },
-    { name: 'Loose Fit Bermuda Shorts', image: '/images/products/bermuda-shorts.png', rating: 3, price: 80 },
-    { name: 'Faded Skinny Jeans', image: '/images/products/faded-jeans.png', rating: 4.5, price: 210 },
-]
+const newArrivals = computed(() => [...(clothes.value ?? [])].sort((a, b) => b.id - a.id).slice(0, 4))
+const topSelling = computed(() => [...(clothes.value ?? [])].sort((a, b) => b.rating - a.rating).slice(0, 4))
 
-const productSections = [
-    { title: 'New Arrivals', products: newArrivals },
-    { title: 'Top Selling', products: topSelling },
-]
+const productSections = computed(() => [
+    { title: 'New Arrivals', products: newArrivals.value },
+    { title: 'Top Selling', products: topSelling.value },
+])
 
 const styles = [
     { name: 'Casual', to: '/category/casual', image: '/images/styles/casual.png', span: 'md:col-span-1' },
@@ -156,9 +154,10 @@ onMounted(updateEdges)
                     {{ sec.title }}
                 </h2>
 
-                <div
+                <p v-if="error" class="mt-8 text-center text-muted">Could not load products. Please try again later.</p>
+                <div v-else
                     class="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 scroll-px-4 scrollbar-none [&::-webkit-scrollbar]:hidden md:mx-0 md:mt-14 md:grid md:grid-cols-4 md:gap-5 md:overflow-visible md:px-0">
-                    <ProductCard v-for="p in sec.products" :key="p.name" :product="p"
+                    <ProductCard v-for="p in sec.products" :key="p.id" :product="p"
                         class="w-[72%] shrink-0 snap-start md:w-auto" />
                 </div>
 

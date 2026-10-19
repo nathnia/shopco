@@ -1,6 +1,17 @@
 <script setup lang="ts">
 const menuOpen = ref(false)
 
+const route = useRoute()
+const query = ref(String(route.query.q ?? ''))
+watch(() => route.query.q, (q) => {
+    query.value = String(q ?? '')
+})
+function goSearch() {
+    const q = query.value.trim()
+    if (!q) return
+    navigateTo({ path: '/search', query: { q } })
+}
+
 const links = [
     { label: 'Shop', to: '/', hasDropdown: true },
     { label: 'On Sale', to: '/' },
@@ -39,25 +50,27 @@ watch(menuOpen, (open) => {
                 </NuxtLink>
             </nav>
 
-            <label class="hidden h-12 flex-1 items-center gap-3 rounded-full bg-surface px-4 md:flex">
+            <form class="hidden h-12 flex-1 items-center gap-3 rounded-full bg-surface px-4 md:flex" role="search"
+                @submit.prevent="goSearch">
                 <svg viewBox="0 0 24 24" class="size-6 shrink-0 text-olive-400 olive-500" fill="none"
                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
                     aria-hidden="true">
                     <circle cx="11" cy="11" r="7.5" />
                     <path d="M16.5 16.5L21.5 21.5" />
                 </svg>
-                <input type="text" placeholder="Search for products..."
+                <input v-model="query" type="search" name="q" aria-label="Search for products"
+                    placeholder="Search for products..."
                     class="w-full bg-transparent text-lg text-olive-700 olive-500 outline-none ">
-            </label>
+            </form>
 
             <div class="ml-auto flex items-center gap-3 md:ml-0">
-                <button type="button" class="md:hidden" aria-label="Search">
+                <NuxtLink to="/search" class="md:hidden" aria-label="Search">
                     <svg viewBox="0 0 24 24" class="size-6" fill="none" stroke="currentColor" stroke-width="2.5"
                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <circle cx="11" cy="11" r="7.5" />
                         <path d="M16.5 16.5L21.5 21.5" />
                     </svg>
-                </button>
+                </NuxtLink>
                 <NuxtLink to="/cart" aria-label="Cart">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"
                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

@@ -1,87 +1,56 @@
 <script setup lang="ts">
-import { products } from '~/data/products'
-
-interface Product {
-    name: string
-    rating: number
-    price: number
-    oldPrice?: number
-    discount?: number
-    description: string
-    images: string[]
-    colors: { name: string, hex: string }[]
-    sizes: string[]
-    reviewCount: number
-    details: { label: string, value: string }[]
-}
-
-const catalog: Record<string, Product> = {
-    'one-life-graphic-tshirt': {
-        name: 'One Life Graphic T-shirt',
-        rating: 4.5,
-        price: 260,
-        oldPrice: 300,
-        discount: 40,
-        description: 'This graphic t-shirt which is perfect for any occasion. Crafted from a soft and breathable fabric, it offers superior comfort and style.',
-        images: [
-            '/images/products/onelife-1.png',
-            '/images/products/onelife-2.png',
-            '/images/products/onelife-3.png',
-        ],
-        colors: [
-            { name: 'Olive', hex: '#4F4631' },
-            { name: 'Green', hex: '#314F4A' },
-            { name: 'Navy', hex: '#31344F' },
-        ],
-        sizes: ['Small', 'Medium', 'Large', 'X-Large'],
-        reviewCount: 451,
-        details: [
-            { label: 'Fit', value: 'Relaxed' },
-            { label: 'Fabric', value: 'Soft, breathable cotton' },
-            { label: 'Neckline', value: 'Crew neck' },
-            { label: 'Care', value: 'Machine wash cold, do not tumble dry' },
-        ],
-    },
-}
-
-catalog['one-life-graphic-t-shirt'] = catalog['one-life-graphic-tshirt']!
+import type { ApiProduct, ProductsResponse } from '~/utils/product'
 
 const route = useRoute()
-const slug = String(route.params.slug)
+const id = Number(route.params.id)
 
-function buildFromSummary(slug: string): Product | undefined {
-    const base = products.find(p => slugify(p.name) === slug)
-    if (!base) return undefined
-    return {
-        ...base,
-        description: 'A comfortable everyday piece made from soft, breathable fabric. Easy to wear and easy to style for any occasion.',
-        images: [base.image],
-        colors: [
-            { name: 'Olive', hex: '#4F4631' },
-            { name: 'Green', hex: '#314F4A' },
-            { name: 'Navy', hex: '#31344F' },
-        ],
-        sizes: ['Small', 'Medium', 'Large', 'X-Large'],
-        reviewCount: 120,
-        details: [
-            { label: 'Fit', value: 'Regular' },
-            { label: 'Fabric', value: 'Soft, breathable cotton' },
-            { label: 'Care', value: 'Machine wash cold, do not tumble dry' },
-        ],
-    }
-}
-
-const found = catalog[slug] ?? buildFromSummary(slug)
-
-if (!found) {
+if (!Number.isInteger(id) || id < 1) {
     throw createError({ statusCode: 404, statusMessage: 'Product not found', fatal: true })
 }
 
-const product: Product = found
+const { data, error } = await useFetch<ApiProduct>(`${API_URL}/products/${id}`)
+
+if (error.value || !data.value) {
+    throw createError({ statusCode: 404, statusMessage: 'Product not found', fatal: true })
+}
+
+const api = data.value
+const discount = Math.round(api.discountPercentage)
+
+const hasVariants = CLOTHING_CATEGORIES.includes(api.category)
+const isShoes = api.category.includes('shoes')
+
+const product = {
+    name: api.title,
+    rating: api.rating,
+    price: priceAfterDiscount(api),
+    oldPrice: discount > 0 ? api.price : undefined,
+    discount,
+    description: api.description,
+    images: api.images?.length ? api.images : [api.thumbnail],
+    colors: [
+        { name: 'Olive', hex: '#4F4631' },
+        { name: 'Green', hex: '#314F4A' },
+        { name: 'Navy', hex: '#31344F' },
+    ],
+    sizes: isShoes ? ['39', '40', '41', '42', '43'] : ['Small', 'Medium', 'Large', 'X-Large'],
+    hasVariants,
+    reviewCount: api.reviews?.length ?? 0,
+    details: [
+        { label: 'Brand', value: api.brand },
+        { label: 'Category', value: api.category.replace(/-/g, ' ') },
+        { label: 'Availability', value: api.availabilityStatus },
+        { label: 'Shipping', value: api.shippingInformation },
+        { label: 'Warranty', value: api.warrantyInformation },
+        { label: 'Returns', value: api.returnPolicy },
+    ].filter((d): d is { label: string, value: string } => !!d.value),
+}
+
+const categoryLabel = api.category.replace(/-/g, ' ')
 
 const selectedImage = ref(0)
 const selectedColor = ref(product.colors[0]!.name)
-const selectedSize = ref('Large')
+const selectedSize = ref(product.sizes[2] ?? '')
 const qty = ref(1)
 
 const added = ref(false)
@@ -90,7 +59,6 @@ function addToCart() {
     setTimeout(() => (added.value = false), 1500)
 }
 
-// Tabs
 type Tab = 'details' | 'reviews' | 'faqs'
 const tabs: { key: Tab, label: string }[] = [
     { key: 'details', label: 'Product Details' },
@@ -105,31 +73,28 @@ const faqs = [
     { q: 'Can I return it?', a: 'Yes. Unworn items in their original condition can be returned within 30 days.' },
 ]
 
-// Reviews
-const reviews = [
-    { name: 'Samantha D.', rating: 4.5, date: 'August 14, 2023', text: 'I absolutely love this t-shirt! The design is unique and the fabric feels so comfortable. As a fellow designer, I appreciate the attention to detail. It\'s become my favorite go-to shirt.' },
-    { name: 'Alex M.', rating: 4, date: 'August 15, 2023', text: 'The t-shirt exceeded my expectations! The colors are vibrant and the print quality is top-notch. Being a UI/UX designer myself, I\'m quite picky about aesthetics, and this t-shirt definitely gets a thumbs up from me.' },
-    { name: 'Ethan R.', rating: 3.5, date: 'August 16, 2023', text: 'This t-shirt is a must-have for anyone who appreciates good design. The minimalistic yet stylish pattern caught my eye, and the fit is perfect. I can see the designer\'s touch in every aspect of this shirt.' },
-    { name: 'Olivia P.', rating: 4, date: 'August 17, 2023', text: 'As a UI/UX enthusiast, I value simplicity and functionality. This t-shirt not only represents those principles but also feels great to wear. It\'s evident that the designer poured their creativity into making this t-shirt stand out.' },
-    { name: 'Liam K.', rating: 4, date: 'August 18, 2023', text: 'This t-shirt is a fusion of comfort and creativity. The fabric is soft, and the design speaks volumes about the designer\'s skill. It\'s like wearing a piece of art that reflects my passion for both design and fashion.' },
-    { name: 'Ava H.', rating: 4.5, date: 'August 19, 2023', text: 'I\'m not just wearing a t-shirt; I\'m wearing a piece of design philosophy. The intricate details and thoughtful layout of the design make this shirt a conversation starter.' },
-]
+const reviews = (api.reviews ?? []).map(r => ({
+    name: r.reviewerName,
+    rating: r.rating,
+    time: new Date(r.date).getTime(),
+    date: formatDate(r.date),
+    text: r.comment,
+}))
 
 const starPath = 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'
 
 const reviewSort = ref('latest')
 const sortedReviews = computed(() =>
-    reviewSort.value === 'highest' ? [...reviews].sort((a, b) => b.rating - a.rating) : reviews,
+    reviewSort.value === 'highest'
+        ? [...reviews].sort((a, b) => b.rating - a.rating)
+        : [...reviews].sort((a, b) => b.time - a.time),
 )
 
 const showAll = ref(false)
 
-const related = [
-    { name: 'Polo with Contrast Trims', image: '/images/products/polo-contrast.png', rating: 4, price: 212, oldPrice: 242, discount: 20 },
-    { name: 'Gradient Graphic T-shirt', image: '/images/products/gradient-tshirt.png', rating: 3.5, price: 145 },
-    { name: 'Polo with Tipping Details', image: '/images/products/polo-tipping.png', rating: 4.5, price: 180 },
-    { name: 'Black Striped T-shirt', image: '/images/products/black-striped-tshirt.png', rating: 5, price: 120, oldPrice: 150, discount: 30 },
-]
+// You might also like: produk lain di kategori yang sama
+const { data: relatedData } = await useFetch<ProductsResponse>(`${API_URL}/products/category/${api.category}`)
+const related = (relatedData.value?.products ?? []).filter(p => p.id !== api.id).slice(0, 4).map(toCard)
 </script>
 
 <template>
@@ -148,29 +113,31 @@ const related = [
                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M9 18l6-6-6-6" />
                 </svg>
-                <span>Men</span>
+                <span class="capitalize">{{ categoryLabel }}</span>
                 <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M9 18l6-6-6-6" />
                 </svg>
-                <span class="text-ink">T-shirts</span>
+                <span class="max-w-40 truncate text-ink md:max-w-xs">{{ product.name }}</span>
             </nav>
         </div>
 
+        <!-- Gallery + info -->
         <div class="mt-5 grid gap-5 lg:grid-cols-2 lg:gap-10">
             <div class="flex flex-col gap-3 lg:flex-row-reverse lg:gap-4">
-                <div class="relative aspect-[5/4] overflow-hidden rounded-2xl bg-surface lg:aspect-auto lg:flex-1">
-                    <img :src="product.images[selectedImage]" :alt="product.name" class="absolute inset-0 size-full"
-                        :class="product.images.length > 1 ? 'object-cover' : 'object-contain'">
+                <div class="relative aspect-5/4 overflow-hidden rounded-2xl bg-surface lg:aspect-auto lg:flex-1">
+                    <img :src="product.images[selectedImage]" :alt="product.name"
+                        class="absolute inset-0 size-full object-contain p-4 md:p-8">
                 </div>
 
                 <div v-if="product.images.length > 1"
-                    class="grid grid-cols-3 gap-3 lg:h-full lg:w-36 lg:grid-cols-1 lg:grid-rows-3 xl:w-40">
+                    class="grid grid-cols-3 gap-3 lg:h-full lg:w-36 lg:grid-cols-1 lg:grid-rows-[repeat(var(--thumbs),minmax(0,1fr))] xl:w-40"
+                    :style="{ '--thumbs': product.images.length }">
                     <button v-for="(img, i) in product.images" :key="img" type="button"
                         :aria-label="`Show photo ${i + 1}`" :aria-pressed="selectedImage === i"
-                        class="relative aspect-[5/4] overflow-hidden rounded-xl border-2 bg-surface lg:aspect-auto"
+                        class="relative aspect-5/4 overflow-hidden rounded-xl border-2 bg-surface lg:aspect-auto"
                         :class="selectedImage === i ? 'border-ink' : 'border-transparent'" @click="selectedImage = i">
-                        <img :src="img" alt="" class="absolute inset-0 size-full object-cover">
+                        <img :src="img" alt="" class="absolute inset-0 size-full object-contain p-1">
                     </button>
                 </div>
             </div>
@@ -203,9 +170,10 @@ const related = [
                 </div>
 
                 <div class="mt-3 flex flex-wrap items-center gap-3">
-                    <p class="text-2xl font-bold md:text-3xl">${{ product.price }}</p>
+                    <p class="text-2xl font-bold md:text-3xl">${{ formatPrice(product.price) }}</p>
                     <template v-if="product.oldPrice">
-                        <p class="text-2xl font-bold text-black/30 line-through md:text-3xl">${{ product.oldPrice }}</p>
+                        <p class="text-2xl font-bold text-black/30 line-through md:text-3xl">${{
+                            formatPrice(product.oldPrice) }}</p>
                         <span class="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-500 md:text-sm">
                             -{{ product.discount }}%
                         </span>
@@ -215,7 +183,7 @@ const related = [
                 <p class="mt-4 text-sm text-muted md:text-base">{{ product.description }}</p>
 
                 <!-- Colors -->
-                <div class="mt-5 border-t border-black/10 pt-5">
+                <div v-if="product.hasVariants" class="mt-5 border-t border-black/10 pt-5">
                     <p class="text-sm text-muted md:text-base">Select Colors</p>
                     <div class="mt-3 flex gap-3">
                         <button v-for="c in product.colors" :key="c.name" type="button" :aria-label="c.name"
@@ -232,7 +200,7 @@ const related = [
                 </div>
 
                 <!-- Size -->
-                <div class="mt-5 border-t border-black/10 pt-5">
+                <div v-if="product.hasVariants" class="mt-5 border-t border-black/10 pt-5">
                     <p class="text-sm text-muted md:text-base">Choose Size</p>
                     <div class="mt-3 flex flex-wrap gap-2 md:gap-3">
                         <button v-for="s in product.sizes" :key="s" type="button" :aria-pressed="selectedSize === s"
@@ -244,7 +212,7 @@ const related = [
                     </div>
                 </div>
 
-                <!-- Quantity, add to cart -->
+                <!-- Quantity + add to cart -->
                 <div class="mt-5 flex gap-3 border-t border-black/10 pt-5 md:gap-5">
                     <div
                         class="inline-flex h-12 items-center gap-5 rounded-full bg-surface px-4 md:h-14 md:gap-8 md:px-5">
@@ -328,8 +296,10 @@ const related = [
                     </div>
                 </div>
 
+                <p v-if="!sortedReviews.length" class="mt-6 text-muted">No reviews yet.</p>
+
                 <div class="mt-5 grid gap-4 md:mt-6 md:grid-cols-2 md:gap-5">
-                    <article v-for="(r, i) in sortedReviews" :key="r.name"
+                    <article v-for="(r, i) in sortedReviews" :key="`${r.name}-${i}`"
                         class="rounded-2xl border border-black/10 p-5 md:p-7"
                         :class="i >= 3 && !showAll ? 'hidden md:block' : ''">
                         <div class="flex items-start justify-between">
@@ -372,7 +342,7 @@ const related = [
                     </article>
                 </div>
 
-                <div v-if="!showAll" class="mt-6 text-center md:mt-8">
+                <div v-if="sortedReviews.length > 3 && !showAll" class="mt-6 text-center md:mt-8">
                     <button type="button"
                         class="h-12 rounded-full border border-black/10 px-10 font-medium transition hover:bg-surface md:px-14"
                         @click="showAll = true">
@@ -398,15 +368,16 @@ const related = [
             </div>
         </section>
 
-        <section class="mt-14 pb-16 md:mt-20 md:pb-0">
+        <!-- You might also like -->
+        <section v-if="related.length" class="mt-14 pb-16 md:mt-20 md:pb-0">
             <h2
                 class="text-center font-display text-3xl font-black uppercase [-webkit-text-stroke:1.5px_currentColor] md:text-5xl">
                 You might <br class="md:hidden">also like
             </h2>
 
             <div
-                class="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 scroll-px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:mt-14 md:grid md:grid-cols-4 md:gap-5 md:overflow-visible md:px-0">
-                <ProductCard v-for="p in related" :key="p.name" :product="p"
+                class="-mx-4 mt-8 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 scroll-px-4 scrollbar-none [&::-webkit-scrollbar]:hidden md:mx-0 md:mt-14 md:grid md:grid-cols-4 md:gap-5 md:overflow-visible md:px-0">
+                <ProductCard v-for="p in related" :key="p.id" :product="p"
                     class="w-[72%] shrink-0 snap-start md:w-auto" />
             </div>
         </section>
