@@ -10,6 +10,7 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
 
   icon: {
+    fetchTimeout: 50000,
     cssLayer: "base",
   },
 

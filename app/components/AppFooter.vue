@@ -6,7 +6,13 @@ const columns = [
     { title: 'Resources', links: ['Free eBooks', 'Development Tutorial', 'How to - Blog', 'Youtube Playlist'] },
 ]
 
-const socials = ['lucide:twitter', 'lucide:facebook', 'lucide:instagram', 'lucide:github']
+const socials = [
+    { name: 'Twitter', icon: 'fa6-brands:twitter', active: false },
+    { name: 'Facebook', icon: 'fa6-brands:facebook-f', active: true },
+    { name: 'Instagram', icon: 'fa6-brands:instagram', active: false },
+    { name: 'GitHub', icon: 'fa6-brands:github', active: false },
+]
+
 const payments = [
     { name: 'Visa', icon: 'logos:visa', w: 37, h: 12 },
     { name: 'Mastercard', icon: 'logos:mastercard', w: 24, h: 19 },
@@ -27,7 +33,13 @@ const payments = [
 
                 <form class="flex w-full flex-col gap-3 md:max-w-sm" @submit.prevent>
                     <label class="flex h-12 items-center gap-3 rounded-full bg-white px-4">
-                        <Icon name="lucide:mail" class="size-5 text-muted" />
+                        <svg viewBox="0 0 24 24" class="size-6 shrink-0 text-[#999999]" fill="none"
+                            stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" />
+                            <path d="M3 7l9 6.5L21 7" />
+                            <path d="M3.5 18l6-5M20.5 18l-6-5" />
+                        </svg>
                         <input type="email" placeholder="Enter your email address"
                             class="w-full bg-transparent text-base text-ink outline-none placeholder:text-muted">
                     </label>
@@ -41,21 +53,23 @@ const payments = [
 
         <div class="mx-auto -mt-16 w-full max-w-337.5 px-4 pb-20 md:-mt-8 md:px-6">
             <div class="grid grid-cols-2 gap-10 md:flex md:justify-between md:gap-8">
-                <!-- Brand -->
                 <div class="col-span-2 max-w-xs md:col-auto">
-                    <p class="logo font-display text-[32px] leading-none">SHOP.CO</p>
+                    <p
+                        class="logo font-display font-black [-webkit-text-stroke:1px_currentColor] text-[32px] leading-none">
+                        SHOP.CO</p>
                     <p class="mt-6 text-base text-muted">
                         We have clothes that suits your style and which you're proud to wear. From women to men.
                     </p>
                     <div class="mt-8 flex gap-3">
-                        <a v-for="icon in socials" :key="icon" href="#"
-                            class="grid size-7 place-items-center rounded-full border border-black/20 bg-white hover:bg-ink hover:text-white">
-                            <Icon :name="icon" class="size-4" />
+                        <a v-for="s in socials" :key="s.name" href="#" :aria-label="s.name"
+                            class="group grid size-7 place-items-center rounded-full border border-black/20 transition"
+                            :class="s.active ? 'bg-ink' : 'bg-white hover:bg-ink'">
+                            <img :src="`https://api.iconify.design/${s.icon}.svg`" alt="" class="size-3.5"
+                                :class="s.active ? 'invert' : 'group-hover:invert'">
                         </a>
                     </div>
                 </div>
 
-                <!-- Link columns -->
                 <div v-for="col in columns" :key="col.title">
                     <h3 class="cap-trim text-base font-medium tracking-[0.2em] uppercase">{{ col.title }}</h3>
                     <ul class="mt-6 space-y-4 text-base text-muted">
@@ -73,7 +87,8 @@ const payments = [
                 <ul class="flex gap-3">
                     <li v-for="p in payments" :key="p.name" :title="p.name"
                         class="grid h-7.5 w-11.5 place-items-center rounded-md border border-black/10 bg-white">
-                        <Icon :name="p.icon" :style="{ width: p.w + 'px', height: p.h + 'px' }" />
+                        <img :src="`https://api.iconify.design/${p.icon}.svg`" :alt="p.name"
+                            :style="{ width: p.w + 'px', height: p.h + 'px' }">
                     </li>
                 </ul>
             </div>
