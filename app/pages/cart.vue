@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatPrice } from '~/utils/product'
+
 interface CartItem {
     id: number
     name: string
@@ -9,18 +11,32 @@ interface CartItem {
     qty: number
 }
 
-const items = ref<CartItem[]>([
-    { id: 1, name: 'Gradient Graphic T-shirt', image: '/images/products/graphic-tshirt.png', size: 'Large', color: 'White', price: 145, qty: 1 },
-    { id: 2, name: 'Checkered Shirt', image: '/images/products/checkered-shirt.png', size: 'Medium', color: 'Red', price: 180, qty: 1 },
-    { id: 3, name: 'Skinny Fit Jeans', image: '/images/products/skinny-jeans.png', size: 'Large', color: 'Blue', price: 240, qty: 1 },
-])
+const store = useProductStore()
+await useAsyncData('home-products', () => store.fetchHome().then(() => true))
+
+const sampleSizes = ['Large', 'Medium', 'Large']
+const sampleColors = ['White', 'Red', 'Blue']
+
+const items = ref<CartItem[]>(
+    store.topSelling.slice(0, 3).map((p, i) => ({
+        id: p.id,
+        name: p.name,
+        image: p.image,
+        size: sampleSizes[i] ?? 'Large',
+        color: sampleColors[i] ?? 'White',
+        price: p.price,
+        qty: 1,
+    })),
+)
 
 const deliveryFee = 15
 const discountPercent = ref(20)
 
-const subtotal = computed(() => items.value.reduce((sum, i) => sum + i.price * i.qty, 0))
-const discount = computed(() => Math.round(subtotal.value * discountPercent.value / 100))
-const total = computed(() => subtotal.value - discount.value + (items.value.length ? deliveryFee : 0))
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+const subtotal = computed(() => round2(items.value.reduce((sum, i) => sum + i.price * i.qty, 0)))
+const discount = computed(() => round2(subtotal.value * discountPercent.value / 100))
+const total = computed(() => round2(subtotal.value - discount.value + (items.value.length ? deliveryFee : 0)))
 
 function changeQty(item: CartItem, delta: number) {
     item.qty = Math.max(1, item.qty + delta)
@@ -64,7 +80,7 @@ function applyPromo() {
             </h1>
         </div>
 
-        <!-- Cart kosong -->
+        <!-- empty cart -->
         <div v-if="!items.length" class="mt-10 rounded-2xl border border-black/10 px-6 py-16 text-center">
             <p class="text-xl font-bold">Your cart is empty</p>
             <p class="mt-2 text-muted">Add something you like and it will show up here.</p>
@@ -102,7 +118,7 @@ function applyPromo() {
                         <p class="text-xs md:text-sm">Color: <span class="text-muted">{{ item.color }}</span></p>
 
                         <div class="mt-auto flex items-end justify-between pt-2">
-                            <p class="text-xl font-bold md:text-2xl">${{ item.price }}</p>
+                            <p class="text-xl font-bold md:text-2xl">${{ formatPrice(item.price) }}</p>
 
                             <div
                                 class="inline-flex h-9 items-center gap-4 rounded-full bg-surface px-3 md:h-11 md:gap-5 md:px-4">
@@ -133,11 +149,11 @@ function applyPromo() {
                 <dl class="mt-5 space-y-4 text-base md:text-lg">
                     <div class="flex items-center justify-between">
                         <dt class="text-muted">Subtotal</dt>
-                        <dd class="font-bold">${{ subtotal }}</dd>
+                        <dd class="font-bold">${{ formatPrice(subtotal) }}</dd>
                     </div>
                     <div class="flex items-center justify-between">
                         <dt class="text-muted">Discount (-{{ discountPercent }}%)</dt>
-                        <dd class="font-bold text-red-500">-${{ discount }}</dd>
+                        <dd class="font-bold text-red-500">-${{ formatPrice(discount) }}</dd>
                     </div>
                     <div class="flex items-center justify-between">
                         <dt class="text-muted">Delivery Fee</dt>
@@ -149,7 +165,7 @@ function applyPromo() {
 
                 <div class="flex items-center justify-between">
                     <p class="text-base md:text-lg">Total</p>
-                    <p class="text-2xl font-bold">${{ total }}</p>
+                    <p class="text-2xl font-bold">${{ formatPrice(total) }}</p>
                 </div>
 
                 <form class="mt-5 flex gap-3" @submit.prevent="applyPromo">
