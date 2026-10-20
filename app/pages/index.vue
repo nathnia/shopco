@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { ProductsResponse } from '~/utils/product'
-
 const stats = [
     { value: '200+', label: 'International Brands' },
     { value: '2,000+', label: 'High-Quality Products' },
@@ -15,19 +13,12 @@ const brands = [
     { name: 'Calvin Klein', src: '/images/brands/calvin.svg', },
 ]
 
-const { data: clothes, error } = await useAsyncData('home-products', async () => {
-    const responses = await Promise.all(
-        CLOTHING_CATEGORIES.map(c => $fetch<ProductsResponse>(`${API_URL}/products/category/${c}`)),
-    )
-    return responses.flatMap(r => r.products).map(toCard)
-})
-
-const newArrivals = computed(() => [...(clothes.value ?? [])].sort((a, b) => b.id - a.id).slice(0, 4))
-const topSelling = computed(() => [...(clothes.value ?? [])].sort((a, b) => b.rating - a.rating).slice(0, 4))
+const store = useProductStore()
+const { error } = await useAsyncData('home-products', () => store.fetchHome().then(() => true))
 
 const productSections = computed(() => [
-    { title: 'New Arrivals', products: newArrivals.value },
-    { title: 'Top Selling', products: topSelling.value },
+    { title: 'New Arrivals', products: store.newArrivals },
+    { title: 'Top Selling', products: store.topSelling },
 ])
 
 const styles = [

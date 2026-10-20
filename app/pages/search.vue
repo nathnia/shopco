@@ -1,25 +1,18 @@
 <script setup lang="ts">
-import type { ProductsResponse } from '~/utils/product'
-
 const route = useRoute()
 const q = computed(() => String(route.query.q ?? '').trim())
 const input = ref(q.value)
 watch(q, v => (input.value = v))
 
-const { data, error } = await useAsyncData(
+const store = useProductStore()
+const { error } = await useAsyncData(
     'search',
-    () => q.value
-        ? $fetch<ProductsResponse>(`${API_URL}/products/search`, { query: { q: q.value, limit: 30 } })
-        : Promise.resolve(null),
+    () => store.searchProducts(q.value).then(() => true),
     { watch: [q] },
 )
 
-const items = computed(() =>
-    (data.value?.products ?? [])
-        .filter(p => FASHION_CATEGORIES.includes(p.category))
-        .map(toCard),
-)
-const total = computed(() => items.value.length)
+const items = computed(() => store.searchItems)
+const total = computed(() => store.searchTotal)
 
 function submit() {
     navigateTo({ path: '/search', query: { q: input.value.trim() } })

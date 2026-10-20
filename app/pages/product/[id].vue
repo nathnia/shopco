@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { ApiProduct, ProductsResponse } from '~/utils/product'
+import { CLOTHING_CATEGORIES, formatDate, formatPrice, priceAfterDiscount } from '~/utils/product'
+import type { ApiReview } from '~/utils/product'
 
 const route = useRoute()
 const id = Number(route.params.id)
@@ -8,13 +9,14 @@ if (!Number.isInteger(id) || id < 1) {
     throw createError({ statusCode: 404, statusMessage: 'Product not found', fatal: true })
 }
 
-const { data, error } = await useFetch<ApiProduct>(`${API_URL}/products/${id}`)
+const store = useProductStore()
+const { error } = await useAsyncData(`product-${id}`, () => store.fetchProduct(id).then(() => true))
 
-if (error.value || !data.value) {
+if (error.value || !store.detail || store.detail.id !== id) {
     throw createError({ statusCode: 404, statusMessage: 'Product not found', fatal: true })
 }
 
-const api = data.value
+const api = store.detail
 const discount = Math.round(api.discountPercentage)
 
 const hasVariants = CLOTHING_CATEGORIES.includes(api.category)
@@ -73,7 +75,7 @@ const faqs = [
     { q: 'Can I return it?', a: 'Yes. Unworn items in their original condition can be returned within 30 days.' },
 ]
 
-const reviews = (api.reviews ?? []).map(r => ({
+const reviews = (api.reviews ?? []).map((r: ApiReview) => ({
     name: r.reviewerName,
     rating: r.rating,
     time: new Date(r.date).getTime(),
@@ -92,9 +94,7 @@ const sortedReviews = computed(() =>
 
 const showAll = ref(false)
 
-// You might also like: produk lain di kategori yang sama
-const { data: relatedData } = await useFetch<ProductsResponse>(`${API_URL}/products/category/${api.category}`)
-const related = (relatedData.value?.products ?? []).filter(p => p.id !== api.id).slice(0, 4).map(toCard)
+const related = store.related
 </script>
 
 <template>
@@ -265,7 +265,7 @@ const related = (relatedData.value?.products ?? []).filter(p => p.id !== api.id)
                 <div class="flex items-center justify-between gap-3">
                     <h2 class="text-xl font-bold md:text-2xl">
                         All Reviews <span class="text-sm font-normal text-muted md:text-base">({{ product.reviewCount
-                            }})</span>
+                        }})</span>
                     </h2>
 
                     <div class="flex items-center gap-2 md:gap-3">

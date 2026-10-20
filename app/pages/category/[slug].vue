@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { ProductsResponse, CategoryItem } from '~/utils/product'
+import type { SortKey } from '~/stores/products'
+import { dressStyles, type CardProduct } from '~/utils/product'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
@@ -15,30 +16,24 @@ const page = ref(1)
 const sort = ref('popular')
 const activeCategory = ref(style.value?.category ?? '')
 
-const sortParams = computed(() => {
-    if (sort.value === 'price-asc') return { sortBy: 'price', order: 'asc' }
-    if (sort.value === 'price-desc') return { sortBy: 'price', order: 'desc' }
-    return { sortBy: 'rating', order: 'desc' }
-})
+const store = useProductStore()
 
-const { data: apiData, error } = await useFetch<ProductsResponse>(
-    () => `${API_URL}/products/category/${activeCategory.value}`,
-    {
-        query: computed(() => ({
-            limit: LIMIT,
-            skip: (page.value - 1) * LIMIT,
-            ...sortParams.value,
-        })),
-    },
+const { error } = await useAsyncData(
+    'category-products',
+    () => store.fetchByCategory({
+        category: activeCategory.value,
+        page: page.value,
+        limit: LIMIT,
+        sort: sort.value as SortKey,
+    }).then(() => true),
+    { watch: [activeCategory, page, sort] },
 )
 
-const { data: allCategories } = await useFetch<CategoryItem[]>(`${API_URL}/products/categories`)
-const categoryList = computed(() =>
-    (allCategories.value ?? []).filter(c => FASHION_CATEGORIES.includes(c.slug)),
-)
+await useAsyncData('categories', () => store.fetchCategories().then(() => true))
+const categoryList = computed(() => store.fashionCategories)
 
-const items = computed(() => (apiData.value?.products ?? []).map(toCard))
-const total = computed(() => apiData.value?.total ?? 0)
+const items = computed(() => store.listItems)
+const total = computed(() => store.listTotal)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / LIMIT)))
 const firstShown = computed(() => (total.value ? (page.value - 1) * LIMIT + 1 : 0))
 const lastShown = computed(() => (page.value - 1) * LIMIT + items.value.length)
@@ -83,6 +78,7 @@ const colors = [
     { name: 'Black', hex: '#000000' },
 ]
 
+// Filter
 const showFilters = ref(false)
 
 watch(showFilters, (open) => {
@@ -121,7 +117,7 @@ function applyFilter() {
 }
 
 const list = computed(() =>
-    items.value.filter(p => p.price >= applied.value.min && p.price <= applied.value.max),
+    items.value.filter((p: CardProduct) => p.price >= applied.value.min && p.price <= applied.value.max),
 )
 </script>
 
@@ -162,7 +158,6 @@ const list = computed(() =>
                     </svg>
                 </div>
 
-                <!-- Categories -->
                 <ul class="mt-5 border-t border-black/10 pt-5">
                     <li v-for="c in categoryList" :key="c.slug">
                         <button type="button" class="flex w-full items-center justify-between py-2 hover:text-ink"
@@ -177,7 +172,6 @@ const list = computed(() =>
                     </li>
                 </ul>
 
-                <!-- Price -->
                 <div class="mt-5 border-t border-black/10 pt-5">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xl font-bold">Price</h3>
@@ -375,6 +369,7 @@ const list = computed(() =>
 </template>
 
 <style scoped>
+/* Slider harga dua titik: input saling menumpuk, hanya bulatannya yang bisa ditarik */
 .range {
     pointer-events: none;
     appearance: none;
