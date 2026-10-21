@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { CLOTHING_CATEGORIES, formatDate, formatPrice, priceAfterDiscount } from '~/utils/product'
+import { useCartStore } from '~/stores/cart'
+import { formatPrice } from '~/utils/product'
 import type { ApiReview } from '~/utils/product'
 
 const route = useRoute()
@@ -55,12 +56,28 @@ const selectedColor = ref(product.colors[0]!.name)
 const selectedSize = ref(product.sizes[2] ?? '')
 const qty = ref(1)
 
+const cart = useCartStore()
 const added = ref(false)
 function addToCart() {
+    cart.addItem(
+        {
+            id: api.id,
+            name: product.name,
+            image: product.images[0] ?? api.thumbnail,
+            price: product.price,
+            oldPrice: product.oldPrice,
+        },
+        {
+            size: product.hasVariants ? selectedSize.value : '',
+            color: product.hasVariants ? selectedColor.value : '',
+            qty: qty.value,
+        },
+    )
     added.value = true
     setTimeout(() => (added.value = false), 1500)
 }
 
+// Tabs
 type Tab = 'details' | 'reviews' | 'faqs'
 const tabs: { key: Tab, label: string }[] = [
     { key: 'details', label: 'Product Details' },
@@ -265,7 +282,7 @@ const related = store.related
                 <div class="flex items-center justify-between gap-3">
                     <h2 class="text-xl font-bold md:text-2xl">
                         All Reviews <span class="text-sm font-normal text-muted md:text-base">({{ product.reviewCount
-                        }})</span>
+                            }})</span>
                     </h2>
 
                     <div class="flex items-center gap-2 md:gap-3">

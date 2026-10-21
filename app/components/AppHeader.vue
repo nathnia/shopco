@@ -1,6 +1,8 @@
 <script setup lang="ts">
 const menuOpen = ref(false)
 
+const cart = useCartStore()
+
 const route = useRoute()
 const query = ref(String(route.query.q ?? ''))
 watch(() => route.query.q, (q) => {
@@ -52,15 +54,14 @@ watch(menuOpen, (open) => {
 
             <form class="hidden h-12 flex-1 items-center gap-3 rounded-full bg-surface px-4 md:flex" role="search"
                 @submit.prevent="goSearch">
-                <svg viewBox="0 0 24 24" class="size-6 shrink-0 text-olive-400 olive-500" fill="none"
-                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-                    aria-hidden="true">
+                <svg viewBox="0 0 24 24" class="size-6 shrink-0 text-olive-400" fill="none" stroke="currentColor"
+                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="11" cy="11" r="7.5" />
                     <path d="M16.5 16.5L21.5 21.5" />
                 </svg>
                 <input v-model="query" type="search" name="q" aria-label="Search for products"
                     placeholder="Search for products..."
-                    class="w-full bg-transparent text-lg text-olive-700 olive-500 outline-none ">
+                    class="w-full bg-transparent text-lg text-olive-700 outline-none">
             </form>
 
             <div class="ml-auto flex items-center gap-3 md:ml-0">
@@ -71,14 +72,22 @@ watch(menuOpen, (open) => {
                         <path d="M16.5 16.5L21.5 21.5" />
                     </svg>
                 </NuxtLink>
-                <NuxtLink to="/cart" aria-label="Cart">
+
+                <NuxtLink to="/cart" aria-label="Cart" class="relative">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"
                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M3 3h2l.5 3m0 0L7 15h11l3-9z" />
                         <circle cx="8" cy="20" r="1" />
                         <circle cx="17" cy="20" r="1" />
                     </svg>
+                    <ClientOnly>
+                        <span v-if="cart.count"
+                            class="absolute -top-2 -right-2 grid h-5 min-w-5 place-items-center rounded-full bg-ink px-1 text-[11px] font-medium text-white">
+                            {{ cart.count }}
+                        </span>
+                    </ClientOnly>
                 </NuxtLink>
+
                 <button type="button" aria-label="Account">
                     <svg viewBox="0 0 24 24" class="size-6" fill="none" stroke="currentColor" stroke-width="2.5"
                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
